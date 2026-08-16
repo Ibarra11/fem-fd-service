@@ -30,6 +30,9 @@ build-image-login:
 		--password-stdin \
 		$(AWS_ECR_DOMAIN)
 
+build-image-push: build-image-login 
+	docker image push $(BUILD_IMAGE):$(GIT_SHA)
+
 build-image-pull: build-image-login 
 	docker image pull $(BUILD_IMAGE):$(GIT_SHA)
 
