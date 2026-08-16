@@ -40,6 +40,6 @@ jobs:
           GOOSE_DBSTRING: postgresql://postgres:password@localhost:5432/postgres?sslmode=disable
           GOOSE_DRIVER: postgres
         run: make build-image-migrate
-
+      # always ensures that docker container is shut down.
       - if: always()
         run: make down
