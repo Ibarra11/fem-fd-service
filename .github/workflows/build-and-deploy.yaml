@@ -13,3 +13,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - run: make build-image
+      # Note: with github actions, we are only providing the enviornment variable for this job, not for the entire workflow. This is because we want to keep the secrets secure and not expose them to other jobs in the workflow.
+      - env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+        run: make build-image-promote
