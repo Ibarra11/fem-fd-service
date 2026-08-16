@@ -69,7 +69,7 @@ build-image-migrate:
 		-dir $(MIGRATION_DIR) up
 
 
-build-image-promote:
+build-image-promote: build-image-login
 	docker image tag $(BUILD_IMAGE):$(GIT_SHA) $(BUILD_IMAGE):$(BUILD_TAG)
 	docker image push $(BUILD_IMAGE):$(BUILD_TAG)
 
