@@ -1,0 +1,67 @@
+name: build-and-deploy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: make build-image
+      # Note: with github actions, we are only providing the enviornment variable for this job, not for the entire workflow. This is because we want to keep the secrets secure and not expose them to other jobs in the workflow.
+      - env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+        run: make build-image-push
+  test:
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: make build-image-pull
+
+      - run: make up
+
+      - env:
+          # This is running in a local docker container, so we can use localhost to connect to the postgres database. If this was running in a different environment, we would need to use the hostname of the postgres container.
+          GOOSE_DBSTRING: postgresql://postgres:password@localhost:5432/postgres?sslmode=disable
+          GOOSE_DRIVER: postgres
+        run: make build-image-migrate
+      # always ensures that docker container is shut down.
+      - if: always()
+        run: make down
+  deploy:
+    concurrency:
+      cancel-in-progress: false
+      group: deploy-lock
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      DOCKERIZE_URL: ${{ secrets.GOOSE_DBSTRING }}
+      GOOSE_DBSTRING: ${{ secrets.GOOSE_DBSTRING }}
+      GOOSE_DRIVER: ${{ vars.GOOSE_DRIVER }}
+    # if: github.ref == 'refs/head/main'
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: make build-image-pull
+      - run: make build-image-migrate
+      - run: make build-image-promote
